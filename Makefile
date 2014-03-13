@@ -1,6 +1,6 @@
 CXXFLAGS = -Ofast -std=c++11 -Wall -Wno-unused-function
 LIBS = `pkg-config --libs jack`
-INCLUDE = -I/usr/local/include/OSC++ `pkg-config --cflags jack`
+INCLUDE = -I/usr/local/include/ -I/usr/include `pkg-config --cflags jack`
 
 GCC = g++
 

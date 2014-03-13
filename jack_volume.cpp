@@ -11,14 +11,14 @@
 extern "C" {
 	#include <jack/jack.h>
 }
-#include <OSCAssociativeNamespace.h>
-#include <OSCProcessor.h>
-#include <OSCCallable.h>
-#include <Transmit.h>
-#include <OSCPrintCallable.h>
-#include <InetTCPMaster.h>
-#include <InetUDPMaster.h>
-#include <InetTransportManager.h>
+#include <OSC++/OSCAssociativeNamespace.h>
+#include <OSC++/OSCProcessor.h>
+#include <OSC++/OSCCallable.h>
+#include <OSC++/Transmit.h>
+#include <OSC++/OSCPrintCallable.h>
+#include <OSC++/InetTCPMaster.h>
+#include <OSC++/InetUDPMaster.h>
+#include <OSC++/InetTransportManager.h>
 
 #ifndef JV_ASSERT
 #define JV_ASSERT(cond, msg) if (! (cond)) throw std::runtime_error(msg)
@@ -269,7 +269,7 @@ public:
 			return;
 		}
 
-		std::cout << "new gain= " << new_gain_lin << std::endl;
+		//std::cout << "new gain= " << new_gain_lin << std::endl;
 
 		// set new volume to item
 		try {
@@ -298,9 +298,14 @@ static void usage() {
 }
 
 static void start_udp_thread(InetUDPMaster* master_udp, InetTransportManager* transport_udp, uint16_t port) {
-	master_udp->startlisten(port);
-	while (running) {
-		transport_udp->runCycle(1000);
+	try {
+		JV_ASSERT(master_udp->startlisten(port), "failed to listen on udp port " + std::to_string(port) + "\nmaybe port is already in use?");
+		std::cout << "start listening on udp port " << port << std::endl;
+		while (running) {
+			transport_udp->runCycle(1000);
+		}
+	} catch(std::exception& e) {
+		std::cerr << e.what() << std::endl;
 	}
 }
 
@@ -412,11 +417,19 @@ int main(int argc, char** argv) {
 
 	std::thread udp(start_udp_thread, &udpMaster, &transport_udp, port);
 
-	tcpMaster.startlisten(port);
-	while (running) {
-		transMan.runCycle(1000);
+	try {
+		JV_ASSERT(tcpMaster.startlisten(port), "failed to listen on tcp port " + std::to_string(port) + "\nmaybe port is already in use?");
+		std::cout << "start listening on tcp port " << port << std::endl;
+		while (running) {
+			transMan.runCycle(1000);
+		}
+	} catch (std::exception& e) {
+		std::cerr << e.what() << std::endl;
+		udp.join();
 	}
 
-	printf("%s: signal received, closing ...\n", NAME);
+	if (!running) {
+		printf("%s: signal received, closing ...\n", NAME);
+	}
 	exit(EXIT_SUCCESS);
 }
