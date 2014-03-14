@@ -39,9 +39,10 @@ This software requires the libOSC++ library I published in another github repo. 
 
 Download the jack-volume archive or clone the repository wth git. Build and install with:
 
-`make`
-
-`make install`
+```
+$ make
+# make install
+```
 
 Maybe the install process will be improved sometimes in the future.
 
@@ -51,6 +52,6 @@ You should be able to run jack-volume by simply type `jack-volume` in a terminal
 
 Usage:
 
-`jack-volume [-c <jack_client_name>] [-s <jack_server_name>] [-p <osc_port>] [-n <number_of_channels>]`
+`$ jack-volume [-c <jack_client_name>] [-s <jack_server_name>] [-p <osc_port>] [-n <number_of_channels>]`
 
 Quit jack-volume by typing CTRL-C.
