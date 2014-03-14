@@ -35,7 +35,7 @@ Later on I will probably implement a mute functionallity to mute and unmute chan
 How To Install
 --------------
 
-This software requires the libOSC++ library I published in another github repo. Install this library first with configure, make, make install. jack-volume will be linked to the static library of libOSC++. Also make sure to install the JACK development packages.
+This software requires the [libOSC++](https://github.com/voidseg/libOSCpp) library I published in another [github repo](https://github.com/voidseg/libOSCpp). Install this library first with configure, make, make install. jack-volume will be linked to the static library of libOSC++. Also make sure to install the JACK development packages.
 
 Download the jack-volume archive or clone the repository wth git. Build and install with:
 
@@ -48,7 +48,7 @@ Maybe the install process will be improved sometimes in the future.
 
 How to Use
 ----------
-You should be able to run jack-volume by simply type `jack-volume` in a terminal. jack-volume is configured only by its parameters.
+First start a JACK server. Then you should be able to run jack-volume by simply typing `jack-volume` in a terminal. jack-volume is configured only by its parameters.
 
 Usage:
 
