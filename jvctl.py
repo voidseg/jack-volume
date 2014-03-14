@@ -133,7 +133,7 @@ class VolumeGUI:
 			self.table.attach(self.vscales[i], i, i+1, 0, 1)
 			if (i != self.nchannels-1):
 				self.send_channel_osc(i, 1.0)
-				label = gtk.Label("Kanal "+str(i+1))
+				label = gtk.Label("Channel "+str(i+1))
 				self.table.attach(label, i, i+1, 1, 2, gtk.FILL, gtk.FILL)
 				label.show()
 			self.table.attach(self.vscales[i], i, i+1, 0, 1)
