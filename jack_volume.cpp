@@ -29,7 +29,11 @@ extern "C" {
 #define MIN(a, b) ((a) < (b) ? (a) : (b) )
 #define MAX(a, b) ((a) > (b) ? (a) : (b) )
 #define ABS(a) ((a) < 0 ? (-(a)) : (a) )
+#if 0
 #define fader2lin(fader) (pow((fader), 2.5))
+#else
+#define fader2lin(fader) (fader)
+#endif
 
 #define NAME "jack-volume"
 #define STD_CHANNELS 2

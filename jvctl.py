@@ -6,6 +6,7 @@ import gtk
 import getopt
 import sys
 import liblo
+import math
 
 
 def scroll2str(scroll):
@@ -88,11 +89,13 @@ class VolumeGUI:
 			if scale == self.vscales[i]:
 				#print "scale found"
 				channel = i
+		
+		gain_abs = math.pow(value/100, 2.5)
 
 		if channel == self.nchannels-1:
-			self.send_master_osc(value/100)
+			self.send_master_osc(gain_abs)
 		else:
-			self.send_channel_osc(channel, value/100)
+			self.send_channel_osc(channel, gain_abs)
 		scale.set_value(value)
 		return True
 
@@ -120,11 +123,11 @@ class VolumeGUI:
 			self.vscales[i].set_range(0, 100)
 			self.vscales[i].set_value(100.0)
 			self.vscales[i].set_inverted(True)
-			self.vscales[i].add_mark(100, gtk.POS_RIGHT, "100")
-			self.vscales[i].add_mark(75, gtk.POS_RIGHT, "75")
-			self.vscales[i].add_mark(50, gtk.POS_RIGHT, "50")
-			self.vscales[i].add_mark(25, gtk.POS_RIGHT, "25")
-			self.vscales[i].add_mark(0, gtk.POS_RIGHT, "0")
+#			self.vscales[i].add_mark(100, gtk.POS_RIGHT, "100")
+#			self.vscales[i].add_mark(75, gtk.POS_RIGHT, "75")
+#			self.vscales[i].add_mark(50, gtk.POS_RIGHT, "50")
+#			self.vscales[i].add_mark(25, gtk.POS_RIGHT, "25")
+#			self.vscales[i].add_mark(0, gtk.POS_RIGHT, "0")
 			self.vscales[i].connect("change-value", self.scale_event)
 			self.vscales[i].show()
 			self.table.attach(self.vscales[i], i, i+1, 0, 1)
