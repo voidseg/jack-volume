@@ -18,8 +18,9 @@ The OSC Part
 
 [OSC](http://en.wikipedia.org/wiki/Open_Sound_Control "Wikipedia - OSC") is a nice protocol that should replace MIDI and becomes more popular every day. All OSC messages contain an address string and some parameters of OSC specific data types. For more information to OSC please read the official documentation.
 
-If possible, jack-volume listens on UDP and TCP at once. The default port for both protocols is 7600 but that can be configured to your needs.
-The OSC address jack-volume is using cannot be configured and is unique for every jack-volume process on a single machine. It consists of a static domain part and a static application part and the dynamic JACK client name and the dynamic channel number or "master" for all channels.
+jack-volume can receive OSC over UDP and TCP at the same time if the network ports are available on your system. The default port for both UDP and TCP is 7600 but you can configure that to your needs.
+The OSC address of jack-volume consists of a static domain part and a static application part and the dynamic JACK client name and the dynamic channel number including "master".
+The static part of the OSC address is fixed and can not be configured. But you can adjust the client name which has to be unique on one single machine.
 
 For example:
 
@@ -35,16 +36,16 @@ Later on I will probably implement a mute functionallity to mute and unmute chan
 How To Install
 --------------
 
-This software requires the [libOSC++](https://github.com/voidseg/libOSCpp) library I published in another [github repo](https://github.com/voidseg/libOSCpp). Install this library first with configure, make, make install. jack-volume will be linked to the static library of libOSC++. Also make sure to install the JACK development packages.
+This software requires the [libOSC++](https://github.com/voidseg/libOSCpp) library I published in another [github repository](https://github.com/voidseg/libOSCpp). Install this library first with `configure`, `make`, `make install`. When building jack-volume, it will be linked to the static lib binary of libOSC++. Also make sure to install the JACK development packages.
 
-Download the jack-volume archive or clone the repository wth git. Build and install with:
+Download the jack-volume archive or clone the git repository. Build and install with:
 
 ```
 $ make
 # make install
 ```
 
-Maybe the install process will be improved sometimes in the future.
+Maybe the install process will be improved sometime in the future.
 
 How to Use
 ----------
