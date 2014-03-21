@@ -12,7 +12,10 @@ all: $(OBJS)
 	$(GCC) -o $(TARGET) $(OBJS) $(LIBS)
 
 install: $(TARGET)
-	cp -f $(TARGET) /usr/bin/
+	cp -f $(TARGET) /usr/local/bin/
+	cp -f jvctl.py /usr/local/bin/jvctl
+	chmod a+rx /usr/local/bin/$(TARGET)
+	chmod a+rx /usr/local/bin/jvctl
 
 clean:
 	rm -f $(SOURCES:.cpp=.o) $(TARGET)
