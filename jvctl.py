@@ -8,6 +8,30 @@ import sys
 import liblo
 import math
 
+def db_to_coeff(db):
+	if db > -318.8:
+		return math.pow(10.0, db * 0.05)
+	else:
+		return 0.0
+
+def coeff_to_db(coeff):
+	return 20.0 * math.log10(coeff)
+
+def fader_to_db(fader):
+	log = math.log10(fader * 1.3422)
+	if fader > 0.745:
+		return 78.25 * log
+	else:
+		return 93.44 * log
+
+def db_to_fader(db):
+	if db > -318.8:
+		if db > 0.0:
+			return 0.745 * math.pow(10.0, db*0.01277955272)
+		else:
+			return 0.745 * math.pow(10.0, db*0.01070205479)
+	else:
+		return 0.0
 
 def scroll2str(scroll):
 	if scroll == gtk.SCROLL_NONE:
@@ -73,14 +97,14 @@ class VolumeGUI:
 	def scale_event(self, scale, scroll, value):
 		#print "scroll=" + scroll2str(scroll)
 		if scroll == gtk.SCROLL_STEP_FORWARD:
-			value += 1.0
+			value += 0.01
 		elif scroll == gtk.SCROLL_STEP_BACKWARD:
-			value -= 1.0
+			value -= 0.01
 		elif scroll == gtk.SCROLL_PAGE_FORWARD:
-			value += 10.0
+			value += 0.1
 		elif scroll == gtk.SCROLL_PAGE_BACKWARD:
-			value -= 10.0
-		value = min(value, 100.0)
+			value -= 0.1
+		value = min(value, 1.0)
 		value = max(value, 0.0)
 
 		channel = 0
@@ -90,7 +114,15 @@ class VolumeGUI:
 				#print "scale found"
 				channel = i
 		
-		gain_abs = math.pow(value/100, 2.5)
+#		gain_abs = math.pow(value, 2.5)
+		gain_db = float("-inf")
+		gain_abs = 0.0
+		if value == 0.0:
+			self.dbs[channel].set_text("-inf")
+		else:
+			gain_db = fader_to_db(value)
+			gain_abs = db_to_coeff(gain_db)
+			self.dbs[channel].set_text(str(gain_db))
 
 		if channel == self.nchannels-1:
 			self.send_master_osc(gain_abs)
@@ -98,6 +130,32 @@ class VolumeGUI:
 			self.send_channel_osc(channel, gain_abs)
 		scale.set_value(value)
 		return True
+
+	def activate_event(self, entry):
+		gain_db = float(entry.get_text().replace(',', '.'))
+		gain_db = min(gain_db, 10.0)
+
+		channel = 0
+
+		for i, item in enumerate(self.dbs):
+			if entry == self.dbs[i]:
+				channel = i
+
+		gain_abs = db_to_coeff(gain_db)
+#		if value == 0.0:
+#			self.dbs[channel].set_text("-inf")
+#		else:
+#			gain_db = fader_to_db(value)
+#			gain_abs = db_to_coeff(gain_db)
+#			self.dbs[channel].set_text(str(gain_db))
+
+		if channel == self.nchannels-1:
+			self.send_master_osc(gain_abs)
+		else:
+			self.send_channel_osc(channel, gain_abs)
+		self.vscales[channel].set_value(db_to_fader(gain_db))
+		entry.set_text(str(gain_db))
+
 
 	def __init__(self, nchannels, host, port, protocol, instance):
 		self.osc = VolumeOSC(host, port, protocol, instance)
@@ -109,19 +167,21 @@ class VolumeGUI:
 
 		self.nchannels += 1
 		self.vscales = [None]*self.nchannels
+		self.dbs = [None]*self.nchannels
 
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.connect("delete_event", self.delete_event)
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
 
-		self.table = gtk.Table(2, channels)
+		self.table = gtk.Table(3, channels)
 
 		for i, val in enumerate(self.vscales):
 			self.vscales[i] = gtk.VScale()
-			self.vscales[i].set_digits(1)
-			self.vscales[i].set_range(0, 100)
-			self.vscales[i].set_value(100.0)
+			self.vscales[i].set_digits(2)
+			self.vscales[i].set_draw_value(False)
+			self.vscales[i].set_range(0, 1)
+			self.vscales[i].set_value(0.745)
 			self.vscales[i].set_inverted(True)
 #			self.vscales[i].add_mark(100, gtk.POS_RIGHT, "100")
 #			self.vscales[i].add_mark(75, gtk.POS_RIGHT, "75")
@@ -130,23 +190,29 @@ class VolumeGUI:
 #			self.vscales[i].add_mark(0, gtk.POS_RIGHT, "0")
 			self.vscales[i].connect("change-value", self.scale_event)
 			self.vscales[i].show()
-			self.table.attach(self.vscales[i], i, i+1, 0, 1)
+			self.table.attach(self.vscales[i], i, i+1, 1, 2)
+			self.dbs[i] = gtk.Entry(0)
+			self.dbs[i].set_text("0.0")
+			self.dbs[i].set_width_chars(4)
+			self.dbs[i].connect("activate", self.activate_event)
+			self.dbs[i].show()
+			self.table.attach(self.dbs[i], i, i+1, 0, 1, gtk.SHRINK, gtk.SHRINK)
 			if (i != self.nchannels-1):
 				self.send_channel_osc(i, 1.0)
 				label = gtk.Label("Channel "+str(i+1))
-				self.table.attach(label, i, i+1, 1, 2, gtk.FILL, gtk.FILL)
+				self.table.attach(label, i, i+1, 2, 3, gtk.SHRINK, gtk.FILL)
 				label.show()
-			self.table.attach(self.vscales[i], i, i+1, 0, 1)
+#self.table.attach(self.vscales[i], i, i+1, 0, 1)
 
 		self.send_master_osc(1.0)
 
 		master = gtk.Label("Master")
-		self.table.attach(master, self.nchannels-1, self.nchannels, 1, 2, gtk.FILL, gtk.FILL)
+		self.table.attach(master, self.nchannels-1, self.nchannels, 2, 3, gtk.FILL, gtk.FILL)
 		master.show()
 		
 
 		self.window.add(self.table)
-		self.window.set_size_request(self.nchannels*80, 300)
+		self.window.set_size_request(self.nchannels*90, 300)
 		self.window.set_position(gtk.WIN_POS_CENTER)
 		self.table.show()
 		self.window.show()
