@@ -106,11 +106,14 @@ public:
 	  ports_out(),
 	  ports_in(),
 	  m_master_gain(1.0),
-   	  channels_gain() {
+	  m_master_mute(false),
+	  channels_gain(),
+	  channels_mute() {
 
 		ports_out.resize(this->num_channels);
 		ports_in.resize(this->num_channels);
 		channels_gain.resize(this->num_channels);
+		channels_mute.resize(this->num_channels);
 
 		set_process_callback(jack_volume::process, this);
 		on_shutdown(jack_volume::shutdown, this);
@@ -122,6 +125,7 @@ public:
 			JV_ASSERT(ports_in[i] != NULL, "cannot create jack ports");
 			
 			channels_gain[i] = 1.0;
+			channels_mute[i] = false;
 		}
 	}
 	virtual ~jack_volume() {
@@ -138,6 +142,10 @@ public:
 
 	void master_fader(float gain_fader) {
 		master_lin(fader2lin(gain_fader));
+	}
+
+	void master_mute(bool mute) {
+		m_master_mute = mute;
 	}
 
 	float channel_lin(int32_t index) const {
@@ -161,6 +169,14 @@ public:
 
 	void channel_fader(int32_t index, float gain_fader) {
 		channel_lin(index, fader2lin(gain_fader));
+	}
+
+	void channel_mute(int32_t index, bool mute) {
+		if (index < 0) {
+			return;
+		}
+		JV_ASSERT(index < (int32_t)channels_gain.size(), "channels_gain: index out of bounds: size=" + std::to_string(channels_gain.size()) + " index=" + std::to_string(index));
+		channels_mute[index] = mute;
 	}
 
 	int channels() const {
@@ -213,7 +229,11 @@ public:
 			ins[i] = (jack_buffer_t)jack_port_get_buffer(cur_port, nframes);
 
 			for (jack_nframes_t frame=0; frame<nframes; frame++) {
-				outs[i][frame] = ins[i][frame] * volume->master_lin() * volume->channel_lin(i);
+				if (volume->m_master_mute || volume->channels_mute[i]) {
+					outs[i][frame] = 0.0;
+				} else {
+					outs[i][frame] = ins[i][frame] * volume->master_lin() * volume->channel_lin(i);
+				}
 			}
 		}
 		return 0;
@@ -223,8 +243,10 @@ private:
 	int num_channels;
 	std::vector<jack_port_t*> ports_out;
 	std::vector<jack_port_t*> ports_in;
-	float m_master_gain;
+	volatile float m_master_gain;
+	volatile bool m_master_mute;
 	std::vector<float> channels_gain;
+	std::vector<bool> channels_mute;
 };
 
 class VolumeCallable : public OSCCallable {
@@ -240,7 +262,6 @@ public:
 
 	void call(const std::string& data, Transmit *const reply) {
 		int32_t index = 1;
-		float new_gain_lin = 0.0;
 
 		unpack.reset();
 		unpack.setData(data);
@@ -257,8 +278,9 @@ public:
 		}
 
 		// parse item to change
-		std::string::size_type pos = address.find(volume.get_client_name());
-		std::string item = address.substr(pos+strlen(volume.get_client_name())+1);
+		const char* client_name = volume.get_client_name();
+		std::string::size_type pos = address.find(client_name) + strlen(client_name) + 1;
+		std::string item = address.substr(pos, sizeof("master")-1);
 		//std::cout << "item=" << item << std::endl;
 		if (0 == item.compare("master")) {
 			index = -1;
@@ -268,22 +290,45 @@ public:
 				index = -1;
 			}
 		}
-		// parse volume
-		if (!unpack.unpackFloat(&new_gain_lin)) {
-			return;
-		}
 
-		//std::cout << "new gain= " << new_gain_lin << std::endl;
-
-		// set new volume to item
-		try {
-			if (index < 0) {
-				volume.master_fader(new_gain_lin);
-			} else {
-				volume.channel_fader(index, new_gain_lin);
+		if (address.find("/mute") != address.npos) {
+			int32_t mute_val = 0;
+			// parse mute
+			if (!unpack.unpackInt(&mute_val)) {
+				return;
 			}
-		} catch (std::exception& ex) {
-			std::cerr << "exception while setting volume for channel=" << index << " gain=" << new_gain_lin << ": " << ex.what() << std::endl << std::flush;
+			bool mute = mute_val != 0;
+			//std::cout << "mute: channel=" << index << " mute=" << std::string(mute ? "true" : "false") << std::endl;
+			// set mute of item
+			try {
+				if (index < 0) {
+					volume.master_mute(mute);
+				} else {
+					volume.channel_mute(index, mute);
+				}
+			} catch (std::exception& ex) {
+				std::cerr << "exception while setting mute of channel=" << index << " mute=" << mute << ": " << ex.what() << std::endl << std::flush;
+			}
+		} else {
+			float new_gain_lin = 0.0;
+
+			// parse volume
+			if (!unpack.unpackFloat(&new_gain_lin)) {
+				return;
+			}
+
+			//std::cout << "new gain= " << new_gain_lin << std::endl;
+
+			// set new volume to item
+			try {
+				if (index < 0) {
+					volume.master_fader(new_gain_lin);
+				} else {
+					volume.channel_fader(index, new_gain_lin);
+				}
+			} catch (std::exception& ex) {
+				std::cerr << "exception while setting volume for channel=" << index << " gain=" << new_gain_lin << ": " << ex.what() << std::endl << std::flush;
+			}
 		}
 	}
 
@@ -380,8 +425,10 @@ int main(int argc, char** argv) {
 	InetUDPMaster udpMaster;
 	VolumeCallable volume_call(jack_volume);
 	nspace.add("/net/mhcloud/volume/" + std::string(client_name) + "/master", &volume_call);
+	nspace.add("/net/mhcloud/volume/" + std::string(client_name) + "/master/mute", &volume_call);
 	for (int i=0; i<num_channels; i++) {
 		nspace.add("/net/mhcloud/volume/" + std::string(client_name) + "/" + std::to_string(i), &volume_call);
+		nspace.add("/net/mhcloud/volume/" + std::string(client_name) + "/" + std::to_string(i) + "/mute", &volume_call);
 	}
 	processor.setNamespace(&nspace);
 	tcpMaster.setProcessor(&processor);

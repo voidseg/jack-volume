@@ -78,6 +78,12 @@ class VolumeOSC:
 	def send_channel(self, channel, val):
 		liblo.send(self.address, "/net/mhcloud/volume/" + instance + "/" + str(channel), val)
 
+	def send_master_mute(self, mute):
+		liblo.send(self.address, "/net/mhcloud/volume/" + instance + "/master/mute", int(mute))
+
+	def send_channel_mute(self, channel, mute):
+		liblo.send(self.address, "/net/mhcloud/volume/" + instance + "/" + str(channel) + "/mute", int(mute))
+
 class VolumeGUI:
 
 	def delete_event(self, widget, event, data=None):
@@ -94,6 +100,12 @@ class VolumeGUI:
 	def send_channel_osc(self, channel, value):
 		self.osc.send_channel(channel, value)
 
+	def send_master_mute(self, mute):
+		self.osc.send_master_mute(mute)
+
+	def send_channel_mute(self, channel, mute):
+		self.osc.send_channel_mute(channel, mute)
+
 	def scale_event(self, scale, scroll, value):
 		#print "scroll=" + scroll2str(scroll)
 		if scroll == gtk.SCROLL_STEP_FORWARD:
@@ -108,7 +120,6 @@ class VolumeGUI:
 		value = max(value, 0.0)
 
 		channel = 0
-
 		for i, val in enumerate(self.vscales):
 			if scale == self.vscales[i]:
 				#print "scale found"
@@ -136,7 +147,6 @@ class VolumeGUI:
 		gain_db = min(gain_db, 10.0)
 
 		channel = 0
-
 		for i, item in enumerate(self.dbs):
 			if entry == self.dbs[i]:
 				channel = i
@@ -156,6 +166,33 @@ class VolumeGUI:
 		self.vscales[channel].set_value(db_to_fader(gain_db))
 		entry.set_text(str(gain_db))
 
+	def click_mute(self, button):
+		channel = 0
+		for i, item in enumerate(self.mutes):
+			if button == self.mutes[i]:
+				channel = i
+
+		self.set_mute(channel, not self.muted[channel])
+
+		if channel == self.nchannels-1:
+			self.send_master_mute(self.muted[channel])
+		else:
+			self.send_channel_mute(channel, self.muted[channel])
+
+
+	def set_mute(self, channel, mute):
+		if (self.muted[channel] != mute):
+			self.muted[channel] = mute
+			if mute:
+				self.mutes[channel].modify_bg(gtk.STATE_NORMAL, gtk.gdk.Color(65535,0,0))
+				self.mutes[channel].modify_bg(gtk.STATE_ACTIVE, gtk.gdk.Color(55535,0,0))
+				self.mutes[channel].modify_bg(gtk.STATE_PRELIGHT, gtk.gdk.Color(65535,0,0))
+			else:
+				self.mutes[channel].modify_bg(gtk.STATE_NORMAL, gtk.gdk.Color(0,65535,0))
+				self.mutes[channel].modify_bg(gtk.STATE_ACTIVE, gtk.gdk.Color(0,55535,0))
+				self.mutes[channel].modify_bg(gtk.STATE_PRELIGHT, gtk.gdk.Color(0,65535,0))
+
+
 
 	def __init__(self, nchannels, host, port, protocol, instance):
 		self.osc = VolumeOSC(host, port, protocol, instance)
@@ -168,20 +205,22 @@ class VolumeGUI:
 		self.nchannels += 1
 		self.vscales = [None]*self.nchannels
 		self.dbs = [None]*self.nchannels
+		self.mutes = [None]*self.nchannels
+		self.muted = [None]*self.nchannels
 
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.connect("delete_event", self.delete_event)
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
 
-		self.table = gtk.Table(3, channels)
+		self.table = gtk.Table(4, channels)
 
 		for i, val in enumerate(self.vscales):
 			self.vscales[i] = gtk.VScale()
 			self.vscales[i].set_digits(2)
 			self.vscales[i].set_draw_value(False)
 			self.vscales[i].set_range(0, 1)
-			self.vscales[i].set_value(0.745)
+			self.vscales[i].set_value(db_to_fader(0.0))
 			self.vscales[i].set_inverted(True)
 #			self.vscales[i].add_mark(100, gtk.POS_RIGHT, "100")
 #			self.vscales[i].add_mark(75, gtk.POS_RIGHT, "75")
@@ -189,25 +228,34 @@ class VolumeGUI:
 #			self.vscales[i].add_mark(25, gtk.POS_RIGHT, "25")
 #			self.vscales[i].add_mark(0, gtk.POS_RIGHT, "0")
 			self.vscales[i].connect("change-value", self.scale_event)
+			self.table.attach(self.vscales[i], i, i+1, 2, 3)
 			self.vscales[i].show()
-			self.table.attach(self.vscales[i], i, i+1, 1, 2)
+
+			self.mutes[i] = gtk.Button("Mute")
+			self.set_mute(i, False)
+			self.send_channel_mute(i, False)
+			self.mutes[i].connect("clicked", self.click_mute)
+			self.table.attach(self.mutes[i], i, i+1, 0, 1, gtk.SHRINK, gtk.SHRINK)
+			self.mutes[i].show()
+
 			self.dbs[i] = gtk.Entry(0)
 			self.dbs[i].set_text("0.0")
 			self.dbs[i].set_width_chars(4)
 			self.dbs[i].connect("activate", self.activate_event)
 			self.dbs[i].show()
-			self.table.attach(self.dbs[i], i, i+1, 0, 1, gtk.SHRINK, gtk.SHRINK)
+			self.table.attach(self.dbs[i], i, i+1, 1, 2, gtk.SHRINK, gtk.SHRINK)
 			if (i != self.nchannels-1):
-				self.send_channel_osc(i, 1.0)
+				self.send_channel_osc(i, db_to_coeff(0.0))
 				label = gtk.Label("Channel "+str(i+1))
-				self.table.attach(label, i, i+1, 2, 3, gtk.SHRINK, gtk.FILL)
+				self.table.attach(label, i, i+1, 3, 4, gtk.SHRINK, gtk.FILL)
 				label.show()
 #self.table.attach(self.vscales[i], i, i+1, 0, 1)
 
-		self.send_master_osc(1.0)
+		self.send_master_osc(db_to_coeff(0.0))
+		self.send_master_mute(False)
 
 		master = gtk.Label("Master")
-		self.table.attach(master, self.nchannels-1, self.nchannels, 2, 3, gtk.FILL, gtk.FILL)
+		self.table.attach(master, self.nchannels-1, self.nchannels, 3, 4, gtk.FILL, gtk.FILL)
 		master.show()
 		
 
