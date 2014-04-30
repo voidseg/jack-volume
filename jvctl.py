@@ -332,7 +332,7 @@ if __name__ == "__main__":
 		opts, args = getopt.getopt(sys.argv[1:], "c:p:h:j:uts:")
 	except getopt.GetoptError as err:
 		sys.stderr.write(str(err) + '\n')
-		sys.stderr.write("usage: " + sys.argv[0] + " [-c <nchannels>] [-p <port>] [-h <host>] [-j <jack-volume_instance>] [-u] [-t]\n")
+		sys.stderr.write("usage: " + sys.argv[0] + " [-c <nchannels>] [-p <port>] [-h <host>] [-j <jack-volume_instance>] [-u] [-t] [-s <listen-port>]\n")
 		sys.stderr.write("options:\n")
 		sys.stderr.write("-c  number of channels\n")
 		sys.stderr.write("-h  OSC server host\n")
@@ -340,7 +340,7 @@ if __name__ == "__main__":
 		sys.stderr.write("-t  send OSC over TCP\n")
 		sys.stderr.write("-u  send OSC over UDP\n")
 		sys.stderr.write("-j  name of the jack-volume instance\n")
-		sys.stderr.write("-s  jvctl OSC UDP listeing port\n")
+		sys.stderr.write("-s  jvctl OSC UDP listening port\n")
 		sys.exit(2)
 	for k, v in opts:
 		if k == "-c":
@@ -356,7 +356,7 @@ if __name__ == "__main__":
 		elif k == "-t":
 			protocol = liblo.TCP
 		elif k == "-s":
-			local_port = v
+			local_port = int(v)
 	channels = int(channels)
 	channels = min(channels, 32)
 	channels = max(channels, 1)
