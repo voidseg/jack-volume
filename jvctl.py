@@ -281,7 +281,7 @@ class VolumeGUI:
 
 			self.mutes[i] = gtk.Button("Mute")
 			self.set_mute(i, False)
-			self.send_channel_mute(i, False)
+#			self.send_channel_mute(i, False)
 			self.mutes[i].connect("clicked", self.click_mute)
 			self.table.attach(self.mutes[i], i, i+1, 0, 1, gtk.SHRINK, gtk.SHRINK)
 			self.mutes[i].show()
@@ -293,14 +293,14 @@ class VolumeGUI:
 			self.dbs[i].show()
 			self.table.attach(self.dbs[i], i, i+1, 1, 2, gtk.SHRINK, gtk.SHRINK)
 			if (i != self.nchannels-1):
-				self.send_channel_osc(i, db_to_coeff(0.0))
+#				self.send_channel_osc(i, db_to_coeff(0.0))
 				label = gtk.Label("Channel "+str(i+1))
 				self.table.attach(label, i, i+1, 3, 4, gtk.SHRINK, gtk.FILL)
 				label.show()
 #self.table.attach(self.vscales[i], i, i+1, 0, 1)
 
-		self.send_master_osc(db_to_coeff(0.0))
-		self.send_master_mute(False)
+#		self.send_master_osc(db_to_coeff(0.0))
+#		self.send_master_mute(False)
 
 		master = gtk.Label("Master")
 		self.table.attach(master, self.nchannels-1, self.nchannels, 3, 4, gtk.FILL, gtk.FILL)
