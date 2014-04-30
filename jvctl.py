@@ -7,6 +7,10 @@ import getopt
 import sys
 import liblo
 import math
+import threading
+import time
+
+gtk.gdk.threads_init()
 
 def db_to_coeff(db):
 	if db > -318.8:
@@ -15,9 +19,14 @@ def db_to_coeff(db):
 		return 0.0
 
 def coeff_to_db(coeff):
-	return 20.0 * math.log10(coeff)
+	if coeff == 0.0:
+		return float('-inf')
+	else:
+		return 20.0 * math.log10(coeff)
 
 def fader_to_db(fader):
+	if fader == 0.0:
+		return float('-inf')
 	log = math.log10(fader * 1.3422)
 	if fader > 0.745:
 		return 78.25 * log
@@ -68,9 +77,48 @@ def scroll2str(scroll):
 		return "SCROLL_END"
 
 
-class VolumeOSC:
-	def __init__(self, host, port, protocol, instance):
+class VolumeOSC(threading.Thread):
+	def __init__(self, gui, host, port, protocol, instance, local_port):
+		threading.Thread.__init__(self)
+		self.daemon = True
+		self.gui = gui
 		self.address = liblo.Address(host, port, protocol)
+		self.server_active = False
+		try:
+			self.server = liblo.Server(local_port)
+			self.server.add_method("/net/mhcloud/volume/" + instance + "/master", "f", self.callback_master_gain)
+			self.server.add_method("/net/mhcloud/volume/" + instance + "/master/mute", "i", self.callback_master_mute)
+			for i in range(channels):
+				self.server.add_method("/net/mhcloud/volume/" + instance + "/" + str(i), "f", self.callback_channel_gain, i)
+				self.server.add_method("/net/mhcloud/volume/" + instance + "/" + str(i) + "/mute", "i", self.callback_channel_mute, i)
+			self.server_active = True
+		except liblo.ServerError, err:
+			sys.stderr.write("OSC server error occured:\n")
+			sys.stderr.write(str(err) + '\n')
+
+	def run(self):
+		while self.server_active:
+			self.server.recv(100)
+
+	def callback_master_gain(self, path, args):
+		gtk.threads_enter()
+		self.gui.fader_event_safe(-1, args[0], False)
+		gtk.threads_leave()
+
+	def callback_master_mute(self, path, args):
+		gtk.threads_enter()
+		self.gui.mute_event_safe(-1, args[0]!=0, False)
+		gtk.threads_leave()
+
+	def callback_channel_gain(self, path, args, types, src, data):
+		gtk.threads_enter()
+		self.gui.fader_event_safe(data, args[0], False)
+		gtk.threads_leave()
+
+	def callback_channel_mute(self, path, args, types, src, data):
+		gtk.threads_enter()
+		self.gui.mute_event_safe(data, args[0]!=0, False)
+		gtk.threads_leave()
 
 	def send_master(self, val):
 		liblo.send(self.address, "/net/mhcloud/volume/" + instance + "/master", val)
@@ -106,6 +154,39 @@ class VolumeGUI:
 	def send_channel_mute(self, channel, mute):
 		self.osc.send_channel_mute(channel, mute)
 
+	def mute_event(self, ch, mute, send_osc):
+		self.set_mute(ch, mute)
+	
+		if send_osc:
+			if ch == self.nchannels-1:
+				self.send_master_mute(self.muted[ch])
+			else:
+				self.send_channel_mute(ch, self.muted[ch])
+
+	def mute_event_safe(self, ch, mute, send_osc):
+		self.lock.acquire()
+		self.mute_event(ch, mute, send_osc)
+		self.lock.release()
+
+	def fader_event(self, ch, gain_abs, send_osc):
+		if send_osc:
+			if ch == self.nchannels-1:
+				self.send_master_osc(gain_abs)
+			else:
+				self.send_channel_osc(ch, gain_abs)
+#		print "fader_event ch=" + str(ch) + " gain=" + str(gain_abs)
+		gain_db = coeff_to_db(gain_abs)
+		if ch == -1:
+			ch = self.nchannels-1
+#		print "fader_event ch=" + str(ch) + " gain=" + str(gain_abs)
+		self.vscales[ch].set_value(db_to_fader(gain_db))
+		self.dbs[ch].set_text(str(gain_db))
+
+	def fader_event_safe(self, ch, gain_abs, send_osc):
+		self.lock.acquire()
+		self.fader_event(ch, gain_abs, send_osc)
+		self.lock.release()
+
 	def scale_event(self, scale, scroll, value):
 		#print "scroll=" + scroll2str(scroll)
 		if scroll == gtk.SCROLL_STEP_FORWARD:
@@ -124,22 +205,7 @@ class VolumeGUI:
 			if scale == self.vscales[i]:
 				#print "scale found"
 				channel = i
-		
-#		gain_abs = math.pow(value, 2.5)
-		gain_db = float("-inf")
-		gain_abs = 0.0
-		if value == 0.0:
-			self.dbs[channel].set_text("-inf")
-		else:
-			gain_db = fader_to_db(value)
-			gain_abs = db_to_coeff(gain_db)
-			self.dbs[channel].set_text(str(gain_db))
-
-		if channel == self.nchannels-1:
-			self.send_master_osc(gain_abs)
-		else:
-			self.send_channel_osc(channel, gain_abs)
-		scale.set_value(value)
+		self.fader_event_safe(channel, db_to_coeff(fader_to_db(value)), True)
 		return True
 
 	def activate_event(self, entry):
@@ -152,19 +218,7 @@ class VolumeGUI:
 				channel = i
 
 		gain_abs = db_to_coeff(gain_db)
-#		if value == 0.0:
-#			self.dbs[channel].set_text("-inf")
-#		else:
-#			gain_db = fader_to_db(value)
-#			gain_abs = db_to_coeff(gain_db)
-#			self.dbs[channel].set_text(str(gain_db))
-
-		if channel == self.nchannels-1:
-			self.send_master_osc(gain_abs)
-		else:
-			self.send_channel_osc(channel, gain_abs)
-		self.vscales[channel].set_value(db_to_fader(gain_db))
-		entry.set_text(str(gain_db))
+		self.fader_event_safe(channel, gain_abs, True)
 
 	def click_mute(self, button):
 		channel = 0
@@ -172,13 +226,7 @@ class VolumeGUI:
 			if button == self.mutes[i]:
 				channel = i
 
-		self.set_mute(channel, not self.muted[channel])
-
-		if channel == self.nchannels-1:
-			self.send_master_mute(self.muted[channel])
-		else:
-			self.send_channel_mute(channel, self.muted[channel])
-
+		self.mute_event_safe(channel, not self.muted[channel], True)
 
 	def set_mute(self, channel, mute):
 		if (self.muted[channel] != mute):
@@ -192,10 +240,10 @@ class VolumeGUI:
 				self.mutes[channel].modify_bg(gtk.STATE_ACTIVE, gtk.gdk.Color(0,55535,0))
 				self.mutes[channel].modify_bg(gtk.STATE_PRELIGHT, gtk.gdk.Color(0,65535,0))
 
-
-
-	def __init__(self, nchannels, host, port, protocol, instance):
-		self.osc = VolumeOSC(host, port, protocol, instance)
+	def __init__(self, nchannels, host, port, protocol, instance, local_port):
+		self.lock = threading.Lock()
+		self.osc = VolumeOSC(self, host, port, protocol, instance, local_port)
+		self.osc.start()
 		self.nchannels = nchannels
 		print "channels=" + str(self.nchannels)
 
@@ -268,15 +316,20 @@ class VolumeGUI:
 	def main(self):
 		gtk.main()
 
+	def get_nchannels(self):
+		return self.nchannels
+
+
 if __name__ == "__main__":
 	channels = 2
 	port = 7600
 	host = "localhost"
 	protocol = liblo.UDP
 	instance = "jack-volume"
+	local_port = 7601
 
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "c:p:h:j:ut")
+		opts, args = getopt.getopt(sys.argv[1:], "c:p:h:j:uts:")
 	except getopt.GetoptError as err:
 		sys.stderr.write(str(err) + '\n')
 		sys.stderr.write("usage: " + sys.argv[0] + " [-c <nchannels>] [-p <port>] [-h <host>] [-j <jack-volume_instance>] [-u] [-t]\n")
@@ -287,6 +340,7 @@ if __name__ == "__main__":
 		sys.stderr.write("-t  send OSC over TCP\n")
 		sys.stderr.write("-u  send OSC over UDP\n")
 		sys.stderr.write("-j  name of the jack-volume instance\n")
+		sys.stderr.write("-s  jvctl OSC UDP listeing port\n")
 		sys.exit(2)
 	for k, v in opts:
 		if k == "-c":
@@ -301,11 +355,13 @@ if __name__ == "__main__":
 			protocol = liblo.UDP
 		elif k == "-t":
 			protocol = liblo.TCP
+		elif k == "-s":
+			local_port = v
 	channels = int(channels)
 	channels = min(channels, 32)
 	channels = max(channels, 1)
 	try:
-		ctrl = VolumeGUI(channels, host, port, protocol, instance)
+		ctrl = VolumeGUI(channels, host, port, protocol, instance, local_port)
 		ctrl.main()
 	except IOError:
 		sys.stderr.write("IOError occured:\n")
