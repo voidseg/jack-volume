@@ -33,7 +33,8 @@ class Dispatcher:
 	def run(self):
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		try:
-			s.bind(("localhost", self.port))
+			self.bind = ('', self.port)
+			s.bind(self.bind)
 		except socket.error, err:
 			print "Couldn't bind server on %r" % (self.bind, )
 			sys.exit(1)
@@ -46,6 +47,7 @@ class Dispatcher:
 				break
 #			print "packet received from: " + str(addr)
 			if not addr in hosts:
+				print "add new host: " + str(addr)
 				hosts.append(addr)
 			for h in hosts:
 				if h != addr:
