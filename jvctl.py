@@ -85,7 +85,18 @@ class VolumeOSC(threading.Thread):
 		self.address = liblo.Address(host, port, protocol)
 		self.server_active = False
 		try:
-			self.server = liblo.Server(local_port)
+			searching_port = True
+			ntrials = 0
+			while searching_port:
+				try:
+					self.server = liblo.Server(local_port)
+					searching_port = False
+				except liblo.ServerError, err:
+					local_port = local_port + 1
+					ntrials = ntrials + 1
+					if ntrials > 1000:
+						raise liblo.ServerError(99, "stop searching free port", None)
+
 			self.server.add_method("/net/mhcloud/volume/" + instance + "/master", "f", self.callback_master_gain)
 			self.server.add_method("/net/mhcloud/volume/" + instance + "/master/mute", "i", self.callback_master_mute)
 			for i in range(channels):
@@ -347,6 +358,7 @@ if __name__ == "__main__":
 			channels = v
 		elif k == "-p":
 			port = int(v)
+			local_port = port + 1
 		elif k == "-h":
 			host = v
 		elif k == "-j":
