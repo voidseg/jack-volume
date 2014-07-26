@@ -51,7 +51,10 @@ class Dispatcher:
 				hosts.append(addr)
 			for h in hosts:
 				if h != addr:
-					s.sendto(datagram, h)
+					try:
+						s.sendto(datagram, h)
+					except socket.gaierror:
+						continue
 		s.close()
 
 if __name__ == "__main__":
