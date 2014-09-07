@@ -26,8 +26,8 @@ For example:
 
 |    domain    | application |  client-name | channel |
 |:------------:|:-----------:|:------------:|:-------:|
-| /net/mhcloud |   /volume   | /jack-volume | /master |
-| /net/mhcloud |   /volume   | /jack-volume | /0      |
+| /org/example |   /volume   | /jack-volume | /master |
+| /org/example |   /volume   | /jack-volume | /0      |
 
 At the moment jack-volume expects a single float parameter between 0.0 and 1.0 representing the absolute gain to apply. Your OSC client is responsible to convert decibel values to the jack-volume gain range.
 
