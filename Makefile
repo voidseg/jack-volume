@@ -15,9 +15,11 @@ install: $(TARGET)
 	cp -f $(TARGET) /usr/local/bin/
 	cp -f jvctl.py /usr/local/bin/jvctl
 	cp -f udp_dispatcher.py /usr/local/bin/udp_dispatcher
+	cp -f generic_connector.py /usr/local/bin/generic_connector
 	chmod a+rx /usr/local/bin/$(TARGET)
 	chmod a+rx /usr/local/bin/jvctl
 	chmod a+rx /usr/local/bin/udp_dispatcher
+	chmod a+rx /usr/local/bin/generic_connector
 
 clean:
 	rm -f $(SOURCES:.cpp=.o) $(TARGET)
