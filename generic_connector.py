@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 
-import pygtk
-pygtk.require('2.0')
-import gtk
 import getopt
 import sys
 import liblo
 import math
 import threading
 import time
-
-gtk.gdk.threads_init()
 
 def db_to_coeff(db):
 	if db > -318.8:
@@ -41,40 +36,6 @@ def db_to_fader(db):
 			return 0.745 * math.pow(10.0, db*0.01070205479)
 	else:
 		return 0.0
-
-def scroll2str(scroll):
-	if scroll == gtk.SCROLL_NONE:
-		return "SCROLL_NONE"
-	elif scroll == gtk.SCROLL_JUMP:
-		return "SCROLL_JUMP"
-	elif scroll == gtk.SCROLL_STEP_BACKWARD:
-		return "SCROLL_STEP_BACKWARD"
-	elif scroll == gtk.SCROLL_STEP_FORWARD:
-		return "SCROLL_STEP_FORWARD"
-	elif scroll == gtk.SCROLL_PAGE_BACKWARD:
-		return "SCROLL_PAGE_BACKWARD"
-	elif scroll == gtk.SCROLL_PAGE_FORWARD:
-		return "SCROLL_PAGE_FORWARD"
-	elif scroll == gtk.SCROLL_STEP_UP:
-		return "SCROLL_STEP_UP"
-	elif scroll == gtk.SCROLL_STEP_DOWN:
-		return "SCROLL_STEP_DOWN"
-	elif scroll == gtk.SCROLL_PAGE_UP:
-		return "SCROLL_PAGE_UP"
-	elif scroll == gtk.SCROLL_PAGE_DOWN:
-		return "SCROLL_PAGE_DOWN"
-	elif scroll == gtk.SCROLL_STEP_LEFT:
-		return "SCROLL_STEP_LEFT"
-	elif scroll == gtk.SCROLL_STEP_RIGHT:
-		return "SCROLL_STEP_RIGHT"
-	elif scroll == gtk.SCROLL_PAGE_LEFT:
-		return "SCROLL_PAGE_LEFT"
-	elif scroll == gtk.SCROLL_PAGE_RIGHT:
-		return "SCROLL_PAGE_RIGHT"
-	elif scroll == gtk.SCROLL_START:
-		return "SCROLL_START"
-	elif scroll == gtk.SCROLL_END:
-		return "SCROLL_END"
 
 
 class VolumeOSCThread(threading.Thread):
