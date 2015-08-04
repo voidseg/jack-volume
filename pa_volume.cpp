@@ -128,7 +128,7 @@ private:
 	void pa_set_master_volume(float vol) {
 		// this pulseaudio api does not seem to work. Try pactl instead.
 		std::ostringstream cmd;
-		cmd << "pactl set-sink-volume " << index << " " << std::stoi(pa_sw_volume_from_linear(vol)) << "";
+		cmd << "pactl set-sink-volume " << index << " " << pa_sw_volume_from_linear(vol) << "";
 		system(cmd.str().c_str());
 		return;
 		pa_cvolume pa_vol;
