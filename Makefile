@@ -2,7 +2,7 @@ CXXFLAGS = -Ofast -std=c++11 -Wall -Wno-unused-function
 LIBS = `pkg-config --libs jack` `pkg-config --libs libpulse` -pthread
 INCLUDE = -I/usr/local/include/ -I/usr/include `pkg-config --cflags jack` `pkg-config --cflags libpulse`
 
-GCC = g++
+CXX = c++
 
 JV_SOURCES = jack_volume.cpp
 JV_OBJS = $(JV_SOURCES:.cpp=.o) /usr/local/lib/libOSC++.a
@@ -12,24 +12,20 @@ PAV_OBJS = $(PAV_SOURCES:.cpp=.o) /usr/local/lib/libOSC++.a
 PAV_TARGET = pa-volume
 
 all: $(JV_OBJS) $(PAV_OBJS)
-	$(GCC) -o $(JV_TARGET) $(JV_OBJS) $(LIBS)
-	$(GCC) -o $(PAV_TARGET) $(PAV_OBJS) $(LIBS)
+	$(CXX) -o $(JV_TARGET) $(JV_OBJS) $(LIBS)
+	$(CXX) -o $(PAV_TARGET) $(PAV_OBJS) $(LIBS)
 
 install: $(JV_TARGET) $(PAV_TARGET)
-	cp -f $(JV_TARGET) /usr/local/bin/
-	cp -f $(PAV_TARGET) /usr/local/bin/
-	cp -f jvctl.py /usr/local/bin/jvctl
-	cp -f udp_dispatcher.py /usr/local/bin/udp_dispatcher
-	cp -f generic_connector.py /usr/local/bin/generic_connector
-	chmod a+rx /usr/local/bin/$(JV_TARGET)
-	chmod a+rx /usr/local/bin/$(PAV_TARGET)
-	chmod a+rx /usr/local/bin/jvctl
-	chmod a+rx /usr/local/bin/udp_dispatcher
-	chmod a+rx /usr/local/bin/generic_connector
+	install -d $(DESTDIR)/usr/local/bin
+	install $(JV_TARGET) $(DESTDIR)/usr/local/bin/
+	install	$(PAV_TARGET) $(DESTDIR)/usr/local/bin/
+	install jvctl.py $(DESTDIR)/usr/local/bin/jvctl
+	install udp_dispatcher.py $(DESTDIR)/usr/local/bin/udp_dispatcher
+	install generic_connector.py $(DESTDIR)/usr/local/bin/generic_connector
 
 clean:
 	rm -f $(JV_SOURCES:.cpp=.o) $(JV_TARGET)
 	rm -f $(PAV_SOURCES:.cpp=.o) $(PAV_TARGET)
 
 %.o:%.cpp
-	$(GCC) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
